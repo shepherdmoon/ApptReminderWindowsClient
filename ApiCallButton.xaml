@@ -6,7 +6,7 @@
              xmlns:fa="http://schemas.fontawesome.io/icons/"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
-    <Button Click="Button_Click" Padding="{Binding ButtonPadding}" Margin="{Binding ButtonMargin}">
+    <Button Click="Button_Click" Padding="{Binding ButtonPadding}" Margin="{Binding ButtonMargin}" IsVisibleChanged="Button_Visibility_Listener">
         <StackPanel Orientation="Horizontal">
             <TextBlock Name="ButtonText" Text="{Binding Text}" />
             <fa:ImageAwesome Visibility="Collapsed" Height="{Binding ElementName=ButtonText, Path=FontSize}" Icon="Spinner" Spin="True" SpinDuration="5" Margin="5 0 0 0" />

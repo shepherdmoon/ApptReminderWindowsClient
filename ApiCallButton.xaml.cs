@@ -34,12 +34,12 @@ namespace ApptReminderWindowsClient
         {
             Button button = (Button)sender;
             button.IsEnabled = false;
-            Click?.Invoke(this, e);
-            if (ErrorMessageBox != null) ErrorMessageBox.Text = "";
             StackPanel children = (StackPanel)button.Content;
             children.Children[1].Visibility = Visibility.Visible;
             children.Children[2].Visibility = Visibility.Collapsed;
             children.Children[3].Visibility = Visibility.Collapsed;
+            Click?.Invoke(this, e);
+            if (ErrorMessageBox != null) ErrorMessageBox.Text = "";
             if (ApiCall != null)
             {
                 var response = await ApiCall;
@@ -61,6 +61,17 @@ namespace ApptReminderWindowsClient
                 children.Children[2].Visibility = Visibility.Visible;
             }
             button.IsEnabled = true;
+        }
+
+        private void Button_Visibility_Listener(object sender, DependencyPropertyChangedEventArgs e)
+        {
+            if (!(bool)e.NewValue) return;
+            Button button = (Button)sender;
+            StackPanel children = (StackPanel)button.Content;
+            if (children.Children[2].Visibility == Visibility.Visible)
+            {
+                children.Children[2].Visibility = Visibility.Collapsed;
+            }
         }
     }
 }
