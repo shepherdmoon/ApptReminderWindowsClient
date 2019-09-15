@@ -1,0 +1,79 @@
+﻿<Window x:Class="ApptReminderWindowsClient.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:ApptReminderWindowsClient"
+        mc:Ignorable="d"
+        Title="Appointment Reminder" Width="1024" Height="768">
+    <DockPanel>
+        <TabControl>
+            <TabItem>
+                <TabItem.Header>
+                    <Image Source="icons/message.png" Height="32" ToolTip="Messages"/>
+                </TabItem.Header>
+                <TextBlock>Messages</TextBlock>
+            </TabItem>
+            <TabItem>
+                <TabItem.Header>
+                    <Image Source="icons/reminder.png" Height="32" ToolTip="Reminders"/>
+                </TabItem.Header>
+                <TextBlock>Reminders</TextBlock>
+            </TabItem>
+            <TabItem>
+                <TabItem.Header>
+                    <Image Source="icons/appointment.png" Height="32" ToolTip="Appointments"/>
+                </TabItem.Header>
+                <TextBlock>Appointments</TextBlock>
+            </TabItem>
+            <TabItem>
+                <TabItem.Header>
+                    <Image Source="icons/template.png" Height="32" ToolTip="Templates"/>
+                </TabItem.Header>
+                <TextBlock>Templates</TextBlock>
+            </TabItem>
+            <TabItem>
+                <TabItem.Header>
+                    <Image Source="icons/clock.png" Height="32" ToolTip="Schedules"/>
+                </TabItem.Header>
+                <TextBlock>Schedules</TextBlock>
+            </TabItem>
+            <TabItem>
+                <TabItem.Header>
+                    <Image Source="icons/settings.png" Height="32" ToolTip="Settings"/>
+                </TabItem.Header>
+                <Grid Name="SettingsContainer">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" MaxWidth="400" />
+                            <ColumnDefinition Width="0.1*" MaxWidth="30" />
+                            <ColumnDefinition Width="*" MaxWidth="400" />
+                        </Grid.ColumnDefinitions>
+                        <local:TextInput x:Name="ApiUrl" Title="API Url" />
+                        <local:TextInput x:Name="ApiKey" Title="API Key" Grid.Column="2" />
+                        <StackPanel Orientation="Horizontal" Grid.Row="1" Margin="0 5 0 0">
+                            <local:ApiCallButton ButtonPadding="5" ButtonMargin="0 0 10 0" Text="Test" Click="HealthCheck_Click" />
+                            <Button Padding="5" Content="Save" Click="SaveApiSettings_Click" />
+                        </StackPanel>
+                        <TextBlock x:Name="HealthcheckResponseMessage" Foreground="Red" Grid.Row="1" Grid.Column="2" Margin="0 10 0 0" TextWrapping="Wrap" />
+                    </Grid>
+                    <StackPanel Grid.Row="1" MaxWidth="400" HorizontalAlignment="Left" Width="{Binding ElementName=SettingsContainer, Path=ActualWidth}" >
+                        <local:TextInput x:Name="SMSRedirect1" Margin="0 20 0 0" Title="SMS Redirect (+12345678900)" />
+                        <local:TextInput x:Name="SMSRedirect2" Margin="0 5 0 0" />
+                        <local:TextInput x:Name="SMSRedirect3" Margin="0 5 0 0" />
+                        <local:TextInput x:Name="SMSRedirect4" Margin="0 5 0 0" />
+                        <local:TextInput x:Name="SMSRedirect5" Margin="0 5 0 0" />
+                    </StackPanel>
+                </Grid>
+            </TabItem>
+        </TabControl>
+    </DockPanel>
+</Window>
