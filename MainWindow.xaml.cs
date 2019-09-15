@@ -35,8 +35,6 @@ namespace ApptReminderWindowsClient
             apiPolicy = Policy
                 .Handle<FlurlHttpException>(shouldRetryCall)
                 .WaitAndRetryAsync(4, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)).Add(TimeSpan.FromMilliseconds(random.Next(1, 999))));
-
-            // initialize the database
         }
 
         private List<object[]> RunQuery(SQLiteCommand command)
