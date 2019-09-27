@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -10,6 +12,7 @@ namespace ApptReminderWindowsClient
     /// </summary>
     public partial class ApiCallButton : UserControl
     {
+        private Task<dynamic>[] apiCalls;
         public ApiCallButton()
         {
             InitializeComponent();
@@ -26,7 +29,18 @@ namespace ApptReminderWindowsClient
 
         public event RoutedEventHandler Click;
 
-        public Task<dynamic> ApiCall { get; set; }
+        public void SetApiCalls(Task<dynamic>[] apiCalls)
+        {
+            this.apiCalls = apiCalls;
+        }
+        public void SetApiCalls(IEnumerable<Task<dynamic>> apiCalls)
+        {
+            this.SetApiCalls(apiCalls.ToArray());
+        }
+        public void SetApiCalls(Task<dynamic> apiCall)
+        {
+            this.SetApiCalls(new Task<dynamic>[] { apiCall });
+        }
 
         public Action<dynamic> Callback { get; set; }
 
@@ -35,31 +49,36 @@ namespace ApptReminderWindowsClient
             Button button = (Button)sender;
             button.IsEnabled = false;
             StackPanel children = (StackPanel)button.Content;
-            children.Children[1].Visibility = Visibility.Visible;
-            children.Children[2].Visibility = Visibility.Collapsed;
-            children.Children[3].Visibility = Visibility.Collapsed;
+            var loading = children.Children[0];
+            var success = children.Children[1];
+            var failure = children.Children[2];
+            loading.Visibility = Visibility.Visible;
+            success.Visibility = Visibility.Collapsed;
+            failure.Visibility = Visibility.Collapsed;
             Click?.Invoke(this, e);
             if (ErrorMessageBox != null) ErrorMessageBox.Text = "";
-            if (ApiCall != null)
+            if (apiCalls != null)
             {
-                var response = await ApiCall;
-                children.Children[1].Visibility = Visibility.Collapsed;
-                if (response is string)
+                var responses = await Task.WhenAll(apiCalls);
+                loading.Visibility = Visibility.Collapsed;
+                string errorMessage = string.Join("\n", responses.Where(response => response is string));
+                if (errorMessage.Length > 0)
                 {
-                    children.Children[3].Visibility = Visibility.Visible;
-                    if (ErrorMessageBox != null) ErrorMessageBox.Text = response;
+                    failure.Visibility = Visibility.Visible;
+                    if (ErrorMessageBox != null) ErrorMessageBox.Text = errorMessage;
                 }
                 else
                 {
-                    children.Children[2].Visibility = Visibility.Visible;
-                    Callback?.Invoke(response);
+                    success.Visibility = Visibility.Visible;
+                    Callback?.Invoke(responses.Length == 1 ? responses[0] : responses);
                 }
             }
             else
             {
-                children.Children[1].Visibility = Visibility.Collapsed;
-                children.Children[2].Visibility = Visibility.Visible;
+                loading.Visibility = Visibility.Collapsed;
+                success.Visibility = Visibility.Visible;
             }
+            apiCalls = null;
             button.IsEnabled = true;
         }
 
@@ -68,9 +87,10 @@ namespace ApptReminderWindowsClient
             if (!(bool)e.NewValue) return;
             Button button = (Button)sender;
             StackPanel children = (StackPanel)button.Content;
-            if (children.Children[2].Visibility == Visibility.Visible)
+            var success = children.Children[1];
+            if (success.Visibility == Visibility.Visible)
             {
-                children.Children[2].Visibility = Visibility.Collapsed;
+                success.Visibility = Visibility.Collapsed;
             }
         }
     }
