@@ -563,9 +563,12 @@ namespace ApptReminderWindowsClient
                 {
                     apiCalls.Add(CallApiEndpoint(HttpMethod.Delete, "/org/reminders/schedule", new { month }));
                 }
-                scheduleMonths.Clear();
-                schedules.ForEach(schedule => scheduleMonths.Add(schedule.month));
                 button.SetApiCalls(apiCalls);
+                button.Callback = (_) =>
+                {
+                    scheduleMonths.Clear();
+                    schedules.ForEach(schedule => scheduleMonths.Add(schedule.month));
+                };
             }
         }
         /* END SCHEDULES TAB FUNCTIONS */

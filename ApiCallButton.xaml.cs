@@ -79,6 +79,7 @@ namespace ApptReminderWindowsClient
                 success.Visibility = Visibility.Visible;
             }
             apiCalls = null;
+            Callback = null;
             button.IsEnabled = true;
         }
 
