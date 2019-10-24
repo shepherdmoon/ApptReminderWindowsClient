@@ -9,6 +9,7 @@ using System.Dynamic;
 using System.Globalization;
 using System.Linq;
 using System.Net.Http;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -22,9 +23,13 @@ namespace ApptReminderWindowsClient
     {
         private readonly AsyncRetryPolicy apiPolicy;
         private readonly string SettingsTable = "Settings";
+        private readonly string TemplateNameTable = "TemplateNames";
         private readonly string ApiUrlType = "BaseUrl";
         private readonly string ApiKeyType = "ApiKey";
         private readonly string TimeZoneType = "TimeZone";
+        // use | as the default because that is not a valid name so it will never conflict with a user selected name
+        private readonly string DefaultTemplateName = "|";
+        private readonly string AddNew = "Add New";
 
         public MainWindow()
         {
@@ -45,6 +50,8 @@ namespace ApptReminderWindowsClient
 
             // initialize the database
             RunQuery(new SQLiteCommand($"CREATE TABLE IF NOT EXISTS {SettingsTable} (type TEXT NOT NULL PRIMARY KEY, value TEXT)"));
+            RunQuery(new SQLiteCommand($"CREATE TABLE IF NOT EXISTS {TemplateNameTable} (name TEXT NOT NULL PRIMARY KEY, value TEXT)"));
+            RunQuery(new SQLiteCommand($"INSERT OR IGNORE INTO {TemplateNameTable} (name, value) VALUES ('{DefaultTemplateName}', 'Default')"));
 
             // initialize any static sources
             SelectedTimezone.ItemsSource = TimeZoneInfo.GetSystemTimeZones().Where(timezone =>
@@ -156,16 +163,250 @@ namespace ApptReminderWindowsClient
             return null;
         }
 
-        private List<ApiCallButton> GetAllButtons(Panel container)
+        private List<UIElement> GetAllElements(Panel container, Type[] types)
         {
-            List<ApiCallButton> buttons = new List<ApiCallButton>();
+            List<UIElement> elements = new List<UIElement>();
             foreach (UIElement control in container.Children)
             {
-                if (control.GetType().IsSubclassOf(typeof(Panel))) buttons.AddRange(GetAllButtons((Panel)control));
-                if (control is ApiCallButton) buttons.Add((ApiCallButton)control);
+                if (control.GetType().IsSubclassOf(typeof(Panel))) elements.AddRange(GetAllElements((Panel)control, types));
+                if (types.Contains(control.GetType())) elements.Add(control);
             }
-            return buttons;
+            return elements;
         }
+
+        /* START TEMPLATES TAB FUNCTIONS */
+        private readonly Dictionary<string, List<dynamic>> templates = new Dictionary<string, List<dynamic>>();
+        private void UpdateTemplateNameSelectorItems()
+        {
+            List<KeyValuePair<string, string>> templateNames = new List<KeyValuePair<string, string>>();
+            foreach (string name in templates.Keys)
+            {
+                string value = name;
+                var result = RunQuery(new SQLiteCommand($"SELECT value FROM {TemplateNameTable} WHERE name='{name}'"));
+                if (result is List<Dictionary<string, object>> rows && rows.Count == 1) value = (string)rows[0]["value"];
+                templateNames.Add(new KeyValuePair<string, string>(name, value));
+            }
+            if (templateNames.Count == 0)
+            {
+                string value = RunQuery(new SQLiteCommand($"SELECT value FROM {TemplateNameTable} WHERE name='{DefaultTemplateName}'"))[0]["value"];
+                templateNames.Add(new KeyValuePair<string, string>(DefaultTemplateName, value));
+            }
+            templateNames.Sort((p1, p2) =>
+            {
+                if (p1.Key == DefaultTemplateName) return -1;
+                if (p2.Key == DefaultTemplateName) return 1;
+                return p1.Value.CompareTo(p2.Value);
+            });
+            templateNames.Add(new KeyValuePair<string, string>(null, AddNew));
+            TemplateNameSelector.ItemsSource = templateNames;
+        }
+
+        private void UpdateTemplateLanguageSelectorItems()
+        {
+            HashSet<string> languages = new HashSet<string>();
+            foreach (dynamic data in templates[(string)TemplateNameSelector.SelectedValue])
+            {
+                if (data.language != null) languages.Add((string)data.language);
+            }
+            List<KeyValuePair<string, string>> templateLanguages = new List<KeyValuePair<string, string>>();
+            foreach (string language in languages)
+            {
+                templateLanguages.Add(new KeyValuePair<string, string>(language, language));
+            }
+            templateLanguages.Sort((p1, p2) => p1.Value.CompareTo(p2.Value));
+            templateLanguages.Insert(0, new KeyValuePair<string, string>(DefaultTemplateName, ""));
+            templateLanguages.Add(new KeyValuePair<string, string>(null, AddNew));
+            TemplateLanguageSelector.ItemsSource = templateLanguages;
+        }
+
+        private async void Templates_Visibility_Listener(object sender, DependencyPropertyChangedEventArgs e)
+        {
+            if (!(bool)e.NewValue) return;
+            List<UIElement> elements = GetAllElements((Grid)sender, new Type[] { typeof(ApiCallButton), typeof(ComboBox) });
+            elements.ForEach(element => element.IsEnabled = false);
+
+            // get the existing templates
+            templates.Clear();
+            dynamic response = await CallApiEndpoint(HttpMethod.Get, "/template");
+            if (response is string)
+            {
+                TemplateResponseMessage.Text = response;
+            }
+            else
+            {
+                // sort all the templates by name
+                foreach (dynamic template in (dynamic[])response)
+                {
+                    string name = template.name ?? DefaultTemplateName;
+                    if (!templates.ContainsKey(name)) templates.Add(name, new List<dynamic>());
+                    templates[name].Add(template);
+                }
+
+                // update the template combo box
+                string curTemplateName = (string)TemplateNameSelector.SelectedValue;
+                UpdateTemplateNameSelectorItems();
+                if (curTemplateName == null || !templates.ContainsKey(curTemplateName)) TemplateNameSelector.SelectedIndex = 0;
+                else TemplateNameSelector.SelectedValue = curTemplateName;
+            }
+            elements.ForEach(element => element.IsEnabled = true);
+        }
+
+        private void TemplateNameSelector_SelectionChanged(object _, SelectionChangedEventArgs e)
+        {
+            if (e.AddedItems.Count == 0) return;
+            string name = (string)TemplateNameSelector.SelectedValue;
+            if (name == null)
+            {
+                AddItemDialog dialog = new AddItemDialog
+                {
+                    Owner = this,
+                    Validation = value =>
+                    {
+                        if (value == null || value == "") return false;
+                        if (value.Length >= 256) return false;
+                        if (value.IndexOf("|") != -1) return false;
+                        if (templates.ContainsKey(value)) return false;
+                        return true;
+                    }
+                };
+                dialog.ShowDialog();
+                if (dialog.Value == null)
+                {
+                    TemplateNameSelector.SelectedItem = e.RemovedItems[0];
+                }
+                else
+                {
+                    List<dynamic> values = new List<dynamic>
+                    {
+                        new { type = "Email", title = "", message = "", subtype = (string)null, language = (string)null },
+                        new { type = "Text", message = "", subtype = (string)null, language = (string)null }
+                    };
+                    templates.Add(dialog.Value, values);
+                    UpdateTemplateNameSelectorItems();
+                    TemplateNameSelector.SelectedValue = dialog.Value;
+                }
+                return;
+            }
+            TextMessage.Value = "";
+            EmailTitle.Value = "";
+            EmailBody.Value = "";
+            foreach (dynamic data in templates[name])
+            {
+                if (data.language != null) continue;
+                if (data.type == "Text")
+                {
+                    TextMessage.Value = data.message ?? "";
+                }
+                if (data.type == "Email")
+                {
+                    EmailTitle.Value = data.title ?? "";
+                    EmailBody.Value = data.message ?? "";
+                }
+            }
+            string curTemplateLang = (string)TemplateLanguageSelector.SelectedValue;
+            UpdateTemplateLanguageSelectorItems();
+            if (curTemplateLang == null || templates[name].FindIndex(data => data.language == curTemplateLang) == -1) TemplateLanguageSelector.SelectedIndex = 0;
+            else TemplateLanguageSelector.SelectedValue = curTemplateLang;
+        }
+
+        private void TemplateLanguageSelector_SelectionChanged(object _, SelectionChangedEventArgs e)
+        {
+            if (e.AddedItems.Count == 0) return;
+            string language = (string)TemplateLanguageSelector.SelectedValue;
+            if (language == null)
+            {
+                AddItemDialog dialog = new AddItemDialog
+                {
+                    Owner = this,
+                    Validation = value =>
+                    {
+                        if (value == null || value == "") return false;
+                        if (value.Length >= 128) return false;
+                        if (value.IndexOf("|") != -1) return false;
+                        if (templates[(string)TemplateNameSelector.SelectedValue].FindIndex(data => data.language == value) != -1) return false;
+                        return true;
+                    }
+                };
+                dialog.ShowDialog();
+                if (dialog.Value == null)
+                {
+                    TemplateLanguageSelector.SelectedItem = e.RemovedItems[0];
+                }
+                else
+                {
+                    List<dynamic> values = templates[(string)TemplateNameSelector.SelectedValue];
+                    values.AddRange(new dynamic[] {
+                        new { type = "Email", title = "", message = "", subtype = (string)null, language = dialog.Value },
+                        new { type = "Text", message = "", subtype = (string)null, language = dialog.Value }
+                    });
+                    UpdateTemplateLanguageSelectorItems();
+                    TemplateLanguageSelector.SelectedValue = dialog.Value;
+                }
+                return;
+            }
+            TextMessageLang.IsEnabled = language != DefaultTemplateName;
+            TextMessageLang.Value = "";
+            EmailTitleLang.IsEnabled = language != DefaultTemplateName;
+            EmailTitleLang.Value = "";
+            EmailBodyLang.IsEnabled = language != DefaultTemplateName;
+            EmailBodyLang.Value = "";
+            foreach (dynamic data in templates[(string)TemplateNameSelector.SelectedValue])
+            {
+                if (data.language != language) continue;
+                if (data.type == "Text")
+                {
+                    TextMessageLang.Value = data.message ?? "";
+                }
+                if (data.type == "Email")
+                {
+                    EmailTitleLang.Value = data.title ?? "";
+                    EmailBodyLang.Value = data.message ?? "";
+                }
+            }
+        }
+
+        private string FormatEmailBody(string text)
+        {
+            if (text == null) text = "";
+            Regex re = new Regex(@"^\s*<html>", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+            if (!re.IsMatch(text)) text = $"<html>\n\t<head></head>\n\t<body>\n\t\t{text}\n\t</body>\n</html>";
+            return text;
+        }
+
+        private dynamic GenerateParams(string type, string name = null, string language = null, string subtype = null, string title = null, string message = null)
+        {
+            dynamic value = new ExpandoObject();
+            value.type = type;
+            if (name != null && name != "") value.name = name;
+            if (language != null && language != "") value.language = language;
+            if (subtype != null && subtype != "") value.subtype = subtype;
+            if (title != null && title != "") value.title = title;
+            if (message != null && message != "") value.message = message;
+            return value;
+        }
+
+        private void SaveTemplates_Click(object sender, RoutedEventArgs _)
+        {
+            ApiCallButton button = (ApiCallButton)sender;
+            if (button.ErrorMessageBox == null) button.ErrorMessageBox = TemplateResponseMessage;
+            List<Task<dynamic>> apiCalls = new List<Task<dynamic>>();
+            string name = (string)TemplateNameSelector.SelectedValue;
+            if (name == DefaultTemplateName) name = null;
+            if (TextMessage.Value == "") apiCalls.Add(CallApiEndpoint(HttpMethod.Delete, "/template", GenerateParams("Text", name)));
+            else apiCalls.Add(CallApiEndpoint(HttpMethod.Put, "/template", GenerateParams("Text", name, message: TextMessage.Value)));
+            if (EmailTitle.Value == "" && EmailBody.Value == "") apiCalls.Add(CallApiEndpoint(HttpMethod.Delete, "/template", GenerateParams("Email", name)));
+            else apiCalls.Add(CallApiEndpoint(HttpMethod.Put, "/template", GenerateParams("Email", name, title: EmailTitle.Value, message: FormatEmailBody(EmailBody.Value))));
+            if (TemplateLanguageSelector.SelectedIndex != 0)
+            {
+                string language = (string)TemplateLanguageSelector.SelectedValue;
+                if (TextMessageLang.Value == "") apiCalls.Add(CallApiEndpoint(HttpMethod.Delete, "/template", GenerateParams("Text", name, language)));
+                else apiCalls.Add(CallApiEndpoint(HttpMethod.Put, "/template", GenerateParams("Text", name, language, message: TextMessageLang.Value)));
+                if (EmailTitleLang.Value == "" && EmailBodyLang.Value == "") apiCalls.Add(CallApiEndpoint(HttpMethod.Delete, "/template", GenerateParams("Email", name, language)));
+                else apiCalls.Add(CallApiEndpoint(HttpMethod.Put, "/template", GenerateParams("Email", name, language, title: EmailTitleLang.Value, message: FormatEmailBody(EmailBodyLang.Value))));
+            }
+            button.SetApiCalls(apiCalls);
+        }
+        /* END TEMPLATES TAB FUNCTIONS */
 
         /* START SCHEDULES TAB FUNCTIONS */
         private readonly string DST = "DST";
@@ -174,8 +415,8 @@ namespace ApptReminderWindowsClient
         private async void Schedules_Visibility_Listener(object sender, DependencyPropertyChangedEventArgs e)
         {
             if (!(bool)e.NewValue) return;
-            List<ApiCallButton> buttons = GetAllButtons((Grid)sender);
-            buttons.ForEach(button => button.IsEnabled = false);
+            List<UIElement> elements = GetAllElements((Grid)sender, new Type[] { typeof(ApiCallButton), typeof(ScheduleInput), typeof(ComboBox) });
+            elements.ForEach(element => element.IsEnabled = false);
 
             // get the saved timezone, default to the computer's selected timezone
             var timezoneResponse = RunQuery(new SQLiteCommand($"SELECT value FROM {SettingsTable} WHERE type='{TimeZoneType}'"));
@@ -192,8 +433,7 @@ namespace ApptReminderWindowsClient
             else
             {
                 dynamic[] schedules = response;
-                if (schedules.Length == 0) return;
-                dynamic schedule = schedules[0].dates[0].schedule;
+                dynamic schedule = schedules.Length == 0 ? null : schedules[0].dates[0].schedule;
                 TimeZoneInfo timezone = (TimeZoneInfo)SelectedTimezone.SelectedItem;
                 bool isDst = timezone.IsDaylightSavingTime(DateTime.Now);
                 for (int i = 0; i < schedules.Length; ++i)
@@ -214,13 +454,13 @@ namespace ApptReminderWindowsClient
                     }
                     return extracted;
                 }
-                int[][] mon = ExtractTimes(schedule.Mo);
-                int[][] tue = ExtractTimes(schedule.Tu);
-                int[][] wed = ExtractTimes(schedule.We);
-                int[][] thu = ExtractTimes(schedule.Th);
-                int[][] fri = ExtractTimes(schedule.Fr);
-                int[][] sat = ExtractTimes(schedule.Sa);
-                int[][] sun = ExtractTimes(schedule.Su);
+                int[][] mon = ExtractTimes(schedule?.Mo);
+                int[][] tue = ExtractTimes(schedule?.Tu);
+                int[][] wed = ExtractTimes(schedule?.We);
+                int[][] thu = ExtractTimes(schedule?.Th);
+                int[][] fri = ExtractTimes(schedule?.Fr);
+                int[][] sat = ExtractTimes(schedule?.Sa);
+                int[][] sun = ExtractTimes(schedule?.Su);
 
                 // convert the schedule from utc to the selected timezone
                 int offset = (int)timezone.BaseUtcOffset.TotalHours;
@@ -234,7 +474,7 @@ namespace ApptReminderWindowsClient
                 SaturdaySchedule.Value = ExtractTimes(((IDictionary<string, object>)localTimes).ContainsKey("Sa") ? localTimes.Sa : null)[0];
                 SundaySchedule.Value = ExtractTimes(((IDictionary<string, object>)localTimes).ContainsKey("Su") ? localTimes.Su : null)[0];
             }
-            buttons.ForEach(button => button.IsEnabled = true);
+            elements.ForEach(element => element.IsEnabled = true);
         }
 
         private void SelectedTimezone_SelectionChanged(object _, SelectionChangedEventArgs _1)
@@ -359,7 +599,7 @@ namespace ApptReminderWindowsClient
             return schedule;
         }
 
-        private void SaveTimezone_Click(object sender, RoutedEventArgs e)
+        private void SaveTimezone_Click(object sender, RoutedEventArgs _)
         {
             ApiCallButton button = (ApiCallButton)sender;
             if (button.ErrorMessageBox == null) button.ErrorMessageBox = TimezoneResponseMessage;
@@ -564,7 +804,7 @@ namespace ApptReminderWindowsClient
                     apiCalls.Add(CallApiEndpoint(HttpMethod.Delete, "/org/reminders/schedule", new { month }));
                 }
                 button.SetApiCalls(apiCalls);
-                button.Callback = (_) =>
+                button.Callback = (_1) =>
                 {
                     scheduleMonths.Clear();
                     schedules.ForEach(schedule => scheduleMonths.Add(schedule.month));
@@ -577,8 +817,8 @@ namespace ApptReminderWindowsClient
         private async void Settings_Visibility_Listener(object sender, DependencyPropertyChangedEventArgs e)
         {
             if (!(bool)e.NewValue) return;
-            List<ApiCallButton> buttons = GetAllButtons((Grid)sender);
-            buttons.ForEach(button => button.IsEnabled = false);
+            List<UIElement> elements = GetAllElements((Grid)sender, new Type[] { typeof(ApiCallButton), typeof(TextInput) });
+            elements.ForEach(element => element.IsEnabled = false);
 
             // get the saved values for url and key
             var url = GetBaseUrl();
@@ -605,17 +845,17 @@ namespace ApptReminderWindowsClient
                     if (smsRedirects.Count > 4) SMSRedirect5.Value = (string)smsRedirects[4];
                 }
             }
-            buttons.ForEach(button => button.IsEnabled = true);
+            elements.ForEach(element => element.IsEnabled = true);
         }
 
-        private void HealthCheck_Click(object sender, RoutedEventArgs e)
+        private void HealthCheck_Click(object sender, RoutedEventArgs _)
         {
             ApiCallButton button = (ApiCallButton)sender;
             if (button.ErrorMessageBox == null) button.ErrorMessageBox = HealthcheckResponseMessage;
             button.SetApiCalls(CallApiEndpoint(HttpMethod.Get, "/healthcheck", null, ApiUrl.Value, ApiKey.Value));
         }
 
-        private void SaveApiSettings_Click(object sender, RoutedEventArgs e)
+        private void SaveApiSettings_Click(object sender, RoutedEventArgs _)
         {
             ApiCallButton button = (ApiCallButton)sender;
             if (button.ErrorMessageBox == null) button.ErrorMessageBox = HealthcheckResponseMessage;
@@ -630,7 +870,7 @@ namespace ApptReminderWindowsClient
             }));
         }
 
-        private void SmsRedirect_Click(object sender, RoutedEventArgs e)
+        private void SmsRedirect_Click(object sender, RoutedEventArgs _)
         {
             ApiCallButton button = (ApiCallButton)sender;
             if (button.ErrorMessageBox == null) button.ErrorMessageBox = SmsRedirectResponseMessage;

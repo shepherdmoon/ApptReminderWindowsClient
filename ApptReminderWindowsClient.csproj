@@ -94,6 +94,9 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="AddItemDialog.xaml.cs">
+      <DependentUpon>AddItemDialog.xaml</DependentUpon>
+    </Compile>
     <Compile Include="ApiCallButton.xaml.cs">
       <DependentUpon>ApiCallButton.xaml</DependentUpon>
     </Compile>
@@ -103,6 +106,10 @@
     <Compile Include="TextInput.xaml.cs">
       <DependentUpon>TextInput.xaml</DependentUpon>
     </Compile>
+    <Page Include="AddItemDialog.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="ApiCallButton.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
