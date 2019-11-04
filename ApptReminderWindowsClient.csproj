@@ -100,6 +100,10 @@
     <Compile Include="ApiCallButton.xaml.cs">
       <DependentUpon>ApiCallButton.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Reminder.cs" />
+    <Compile Include="ReminderInput.xaml.cs">
+      <DependentUpon>ReminderInput.xaml</DependentUpon>
+    </Compile>
     <Compile Include="ScheduleInput.xaml.cs">
       <DependentUpon>ScheduleInput.xaml</DependentUpon>
     </Compile>
@@ -126,6 +130,10 @@
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
+    <Page Include="ReminderInput.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="ScheduleInput.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
@@ -154,6 +162,7 @@
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
       <SubType>Designer</SubType>
     </EmbeddedResource>
+    <None Include=".editorconfig" />
     <None Include="packages.config" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>

@@ -4,6 +4,7 @@ using Polly;
 using Polly.Retry;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Data.SQLite;
 using System.Dynamic;
 using System.Globalization;
@@ -65,6 +66,8 @@ namespace ApptReminderWindowsClient
                 if (current.DaylightDelta.TotalHours != (int)current.DaylightDelta.TotalHours) return false;
                 return true;
             });
+            MinHoursSelector.ItemsSource = Enumerable.Range(0, 24);
+            MinHoursSelector.SelectedIndex = 0;
         }
 
         private dynamic RunQuery(SQLiteCommand command)
@@ -120,7 +123,7 @@ namespace ApptReminderWindowsClient
             return null;
         }
 
-        private async Task<dynamic> CallApiEndpoint(HttpMethod method, string endpoint, object parameters = null, string baseUrl = null, string apiKey = null)
+        private async Task<dynamic> CallApiEndpoint(HttpMethod method, string endpoint, object parameters = null, IDictionary<string, object> queryParams = null, string baseUrl = null, string apiKey = null)
         {
             if (baseUrl == null) baseUrl = GetBaseUrl();
             if (apiKey == null) apiKey = GetApiKey();
@@ -131,6 +134,7 @@ namespace ApptReminderWindowsClient
                     delegate()
                     {
                         var url = baseUrl.WithHeader("x-api-key", apiKey).AppendPathSegment(endpoint);
+                        if (queryParams != null) url = url.SetQueryParams(queryParams);
                         if (method == HttpMethod.Get) return url.GetJsonAsync();
                         return url.SendJsonAsync(method, parameters).ReceiveJson();
                     }
@@ -173,6 +177,103 @@ namespace ApptReminderWindowsClient
             }
             return elements;
         }
+
+        /* START REMINDERS TAB FUNCTIONS */
+        public ObservableCollection<Reminder> Reminders { get; } = new ObservableCollection<Reminder>();
+        private readonly List<KeyValuePair<string, string>> templateNames = new List<KeyValuePair<string, string>>();
+        private async void Reminders_Visibility_Listener(object sender, DependencyPropertyChangedEventArgs e)
+        {
+            if (!(bool)e.NewValue) return;
+            List<UIElement> elements = GetAllElements((Grid)sender, new Type[] { typeof(Button), typeof(ComboBox) });
+            elements.ForEach(element => element.IsEnabled = false);
+
+            // get the existing reminders
+            dynamic response = await CallApiEndpoint(HttpMethod.Get, "/org/reminders/default", null, new Dictionary<string, object>() { { "type", "null" } });
+            if (response is string)
+            {
+                ReminderResponseMessage.Text = response;
+            }
+            else
+            {
+                dynamic templateResponse = await CallApiEndpoint(HttpMethod.Get, "/template", null, new Dictionary<string, object>() { { "metaOnly", "true" } });
+                if (templateResponse is string)
+                {
+                    ReminderResponseMessage.Text = templateResponse;
+                }
+                else
+                {
+                    // generate the template names
+                    templateNames.Clear();
+                    Dictionary<string, HashSet<string>> names = new Dictionary<string, HashSet<string>>();
+                    foreach(dynamic template in templateResponse)
+                    {
+                        string name = template.name ?? DefaultTemplateName;
+                        if (names.ContainsKey(name)) names[name].Add((string)template.type);
+                        else names[name] = new HashSet<string> { (string)template.type };
+                    }
+                    foreach(string name in names.Keys)
+                    {
+                        var displayName = name;
+                        var result = RunQuery(new SQLiteCommand($"SELECT value FROM {TemplateNameTable} WHERE name='{name}'"));
+                        if (result is List<Dictionary<string, object>> rows && rows.Count == 1) displayName = (string)rows[0]["value"];
+                        List<string> types = names[name].ToList();
+                        types.Sort();
+                        templateNames.Add(new KeyValuePair<string, string>(name, $"{displayName} ({string.Join(",", types)})"));
+                    }
+                    templateNames.Sort((p1, p2) =>
+                    {
+                        if (p1.Key == DefaultTemplateName) return -1;
+                        if (p2.Key == DefaultTemplateName) return 1;
+                        return p1.Value.CompareTo(p2.Value);
+                    });
+
+                    // generate the reminder objects
+                    Reminders.Clear();
+                    MinHoursSelector.SelectedValue = (int)response.minHoursBeforeApt;
+                    foreach (dynamic data in response.reminders)
+                    {
+                        Reminders.Add(new Reminder(data, templateNames));
+                    }
+                    AddReminderButton.IsEnabled = Reminders.Count < 9;
+                }
+            }
+            elements.ForEach(element => element.IsEnabled = true);
+        }
+
+        private void AddReminder_Click(object _, RoutedEventArgs _1)
+        {
+            if (Reminders.Count >= 9)
+            {
+                AddReminderButton.IsEnabled = false;
+                return;
+            }
+            Reminders.Add(new Reminder(templateNames));
+            RemindersContainer.ScrollToEnd();
+        }
+
+        private void RemoveReminder_Click(object sender, RoutedEventArgs _1)
+        {
+            Button button = (Button)sender;
+            string id = (string)button.Tag;
+            Reminders.Remove(Reminders.Where(reminder => reminder.Id == id).First());
+            if (Reminders.Count < 9)
+            {
+                AddReminderButton.IsEnabled = true;
+            }
+        }
+
+        private void SaveReminders_Click(object sender, RoutedEventArgs _)
+        {
+            ApiCallButton button = (ApiCallButton)sender;
+            if (button.ErrorMessageBox == null) button.ErrorMessageBox = ReminderResponseMessage;
+            var parameters = new
+            {
+                minHoursBeforeApt = MinHoursSelector.SelectedValue,
+                reminders = Reminders.Select(reminder => reminder.Convert())
+            };
+            button.SetApiCalls(CallApiEndpoint(HttpMethod.Put, "/org/reminders/default", parameters));
+        }
+        /* END REMINDERS TAB FUNCTIONS */
 
         /* START TEMPLATES TAB FUNCTIONS */
         private readonly Dictionary<string, List<dynamic>> templates = new Dictionary<string, List<dynamic>>();
@@ -830,7 +931,7 @@ namespace ApptReminderWindowsClient
             if (url != null && key != null)
             {
                 SmsRedirectResponseMessage.Text = "";
-                var response = await CallApiEndpoint(HttpMethod.Get, "/org/smsCallRedirect", null, url, key);
+                var response = await CallApiEndpoint(HttpMethod.Get, "/org/smsCallRedirect", null, null, url, key);
                 if (response is string)
                 {
                     SmsRedirectResponseMessage.Text = response;
@@ -852,7 +953,7 @@ namespace ApptReminderWindowsClient
         {
             ApiCallButton button = (ApiCallButton)sender;
             if (button.ErrorMessageBox == null) button.ErrorMessageBox = HealthcheckResponseMessage;
-            button.SetApiCalls(CallApiEndpoint(HttpMethod.Get, "/healthcheck", null, ApiUrl.Value, ApiKey.Value));
+            button.SetApiCalls(CallApiEndpoint(HttpMethod.Get, "/healthcheck", null, null, ApiUrl.Value, ApiKey.Value));
         }
 
         private void SaveApiSettings_Click(object sender, RoutedEventArgs _)
