@@ -4,6 +4,15 @@
              xmlns:local="clr-namespace:ApptReminderWindowsClient"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
-         
+        <Style x:Key="ErrorTextBlockStyle" TargetType="{x:Type TextBlock}">
+            <Setter Property="Visibility" Value="Visible" />
+            <Setter Property="Foreground" Value="Red" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Style.Triggers>
+                <Trigger Property="Text" Value="">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
     </Application.Resources>
 </Application>

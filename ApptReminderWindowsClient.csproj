@@ -100,12 +100,25 @@
     <Compile Include="ApiCallButton.xaml.cs">
       <DependentUpon>ApiCallButton.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Helper.cs" />
     <Compile Include="Reminder.cs" />
     <Compile Include="ReminderInput.xaml.cs">
       <DependentUpon>ReminderInput.xaml</DependentUpon>
     </Compile>
+    <Compile Include="RemindersTab.xaml.cs">
+      <DependentUpon>RemindersTab.xaml</DependentUpon>
+    </Compile>
     <Compile Include="ScheduleInput.xaml.cs">
       <DependentUpon>ScheduleInput.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="SchedulesTab.xaml.cs">
+      <DependentUpon>SchedulesTab.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="SettingsTab.xaml.cs">
+      <DependentUpon>SettingsTab.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="TemplatesTab.xaml.cs">
+      <DependentUpon>TemplatesTab.xaml</DependentUpon>
     </Compile>
     <Compile Include="TextInput.xaml.cs">
       <DependentUpon>TextInput.xaml</DependentUpon>
@@ -134,7 +147,23 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
+    <Page Include="RemindersTab.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="ScheduleInput.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="SchedulesTab.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="SettingsTab.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="TemplatesTab.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

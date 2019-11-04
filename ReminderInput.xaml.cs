@@ -40,6 +40,6 @@ namespace ApptReminderWindowsClient
             get => (Reminder)GetValue(DataProperty);
             set => SetValue(DataProperty, value);
         }
-        public static readonly DependencyProperty DataProperty = DependencyProperty.Register("Data", typeof(Reminder), typeof(UserControl), new UIPropertyMetadata(null));
+        public static readonly DependencyProperty DataProperty = DependencyProperty.Register("Data", typeof(Reminder), typeof(ReminderInput), new UIPropertyMetadata(null));
     }
 }
