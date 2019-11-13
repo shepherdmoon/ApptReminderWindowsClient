@@ -8,9 +8,9 @@
              d:DesignHeight="450" d:DesignWidth="800">
     <Button Click="Button_Click" Padding="{Binding ButtonPadding}" Margin="{Binding ButtonMargin}" IsVisibleChanged="Button_Visibility_Listener">
         <StackPanel Orientation="Horizontal">
-            <fa:ImageAwesome Visibility="Collapsed" Height="{Binding ElementName=ButtonText, Path=FontSize}" Icon="Spinner" Spin="True" SpinDuration="5" Margin="0 0 5 0" />
-            <fa:ImageAwesome Visibility="Collapsed" Height="{Binding ElementName=ButtonText, Path=FontSize}" Icon="Check" Foreground="Green" Margin="0 0 5 0" />
-            <fa:ImageAwesome Visibility="Collapsed" Height="{Binding ElementName=ButtonText, Path=FontSize}" Icon="Times" Foreground="Red" Margin="0 0 5 0" />
+            <fa:ImageAwesome x:Name="Loading" Visibility="Collapsed" Height="{Binding ElementName=ButtonText, Path=FontSize}" Icon="Spinner" Spin="True" SpinDuration="5" Margin="0 0 5 0" />
+            <fa:ImageAwesome x:Name="Success" Visibility="Collapsed" Height="{Binding ElementName=ButtonText, Path=FontSize}" Icon="Check" Foreground="Green" Margin="0 0 5 0" />
+            <fa:ImageAwesome x:Name="Failure" Visibility="Collapsed" Height="{Binding ElementName=ButtonText, Path=FontSize}" Icon="Times" Foreground="Red" Margin="0 0 5 0" />
             <TextBlock Name="ButtonText" Text="{Binding Text}" />
         </StackPanel>
     </Button>

@@ -1,0 +1,110 @@
+﻿<UserControl x:Class="ApptReminderWindowsClient.AppointmentsTab"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:ApptReminderWindowsClient"
+             xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="800">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="0.5*" />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="10" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Button Content="New Appointment" HorizontalAlignment="Left" Padding="5" Margin="0 5 0 5" Click="NewAppointment_Click" />
+        <Grid Grid.Row="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="0.5*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="10" />
+                <ColumnDefinition Width="0.5*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <local:ApiCallButton x:Name="SaveButton" Text="Save" HorizontalAlignment="Left" ButtonPadding="5" ButtonMargin="0 5 0 5" Click="SaveButton_Click">
+                <local:ApiCallButton.Style>
+                    <Style TargetType="{x:Type local:ApiCallButton}">
+                        <Setter Property="IsEnabled" Value="True" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding ElementName=Id, Path=Text}" Value="">
+                                <Setter Property="IsEnabled" Value="False" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding ElementName=Date, Path=Text}" Value="">
+                                <Setter Property="IsEnabled" Value="False" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </local:ApiCallButton.Style>
+            </local:ApiCallButton>
+            <local:ApiCallButton x:Name="DeleteButton" Grid.Column="3" Text="Delete" HorizontalAlignment="Left" ButtonPadding="5" ButtonMargin="0 5 0 5" Click="DeleteButton_Click">
+                <local:ApiCallButton.Style>
+                    <Style TargetType="{x:Type local:ApiCallButton}">
+                        <Setter Property="IsEnabled" Value="True" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding ElementName=Id, Path=Text}" Value="">
+                                <Setter Property="IsEnabled" Value="False" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding ElementName=Date, Path=Text}" Value="">
+                                <Setter Property="IsEnabled" Value="False" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </local:ApiCallButton.Style>
+            </local:ApiCallButton>
+            <TextBlock x:Name="ResponseMessage" Grid.Row="1" Grid.ColumnSpan="5" Margin="5 0 0 0" Style="{StaticResource ErrorTextBlockStyle}" />
+            <Label Grid.Row="2" Content="Id" FontWeight="Bold" />
+            <TextBox x:Name="Id" Grid.Row="2" Grid.Column="1" IsEnabled="False" Margin="0 5 0 5" />
+            <Label Grid.Row="2" Grid.Column="3" Content="Date" FontWeight="Bold" />
+            <TextBox x:Name="Date" Grid.Row="2" Grid.Column="4" IsEnabled="False" Margin="0 5 0 5" />
+            <local:TextInput x:Name="DisplayName" Grid.Row="3" Grid.ColumnSpan="2" Title="Name" />
+            <local:TextInput x:Name="Lang" Grid.Row="3" Grid.Column="3" Grid.ColumnSpan="2" Title="Language" MaxLength="128" />
+            <Label Grid.Row="4" Content="Format" ToolTip="How {date} should be formatted for the template" />
+            <TextBox x:Name="DateFormat" Grid.Row="4" Grid.Column="1" Margin="0 5 0 5" TextChanged="DateFormat_ValueChanged" />
+            <Label x:Name="DateFormatPreview" Grid.Row="4" Grid.Column="3" Grid.ColumnSpan="2" />
+            <local:TextInput x:Name="Email" Grid.Row="5" Grid.ColumnSpan="2" Title="Email Address" />
+            <local:TextInput x:Name="Text" Grid.Row="5" Grid.Column="3" Grid.ColumnSpan="2" Title="Phone Number" ToolTip="Only include the country code and the digits (ex: +12223334444" />
+            <Label Grid.Row="6" Grid.ColumnSpan="2" Content="Reminders" FontWeight="Bold" />
+            <DataGrid x:Name="Reminders" Grid.Row="7" Grid.ColumnSpan="5" ColumnWidth="*" SelectionMode="Single" SelectionUnit="FullRow" AutoGenerateColumns="False" IsReadOnly="True">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Date" Binding="{Binding Date}" />
+                    <DataGridTextColumn Header="Template" Binding="{Binding Template}" />
+                    <DataGridTextColumn Header="Main Contact" Binding="{Binding MainContact}" />
+                    <DataGridTextColumn Header="Secondary Contact" Binding="{Binding SecondaryContact}" />
+                </DataGrid.Columns>
+            </DataGrid>
+        </Grid>
+        <Button Grid.Column="2" Content="Search" HorizontalAlignment="Left" Padding="5" Margin="0 5 0 5" Click="SearchButton_Click" />
+        <Grid Grid.Row="1" Grid.Column="2" Grid.RowSpan="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="100" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Label Content="Id/Name" FontWeight="Bold" />
+            <TextBox x:Name="SearchId" Grid.Column="1" Margin="0 5 0 5" />
+            <Label Grid.Row="1" Content="Date" FontWeight="Bold" />
+            <xctk:DateTimePicker x:Name="SearchDate" Grid.Row="1" Grid.Column="1" Margin="0 5 0 5" Format="Custom" FormatString="{Binding RelativeSource={RelativeSource AncestorType=local:AppointmentsTab}, Path=DateFormatString, FallbackValue=ddd}" />
+            <DataGrid x:Name="AppointmentsTable" Grid.Row="2" Grid.ColumnSpan="2" ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=local:AppointmentsTab}, Path=Appointments}" ColumnWidth="*" SelectionMode="Single" SelectionUnit="FullRow" SelectionChanged="AppointmentsTable_SelectionChanged" />
+        </Grid>
+    </Grid>
+</UserControl>

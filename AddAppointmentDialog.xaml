@@ -1,0 +1,27 @@
+﻿<Window x:Class="ApptReminderWindowsClient.AddAppointmentDialog"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
+        mc:Ignorable="d" 
+             Title="{Binding Title, FallbackValue='Add New'}" Height="{Binding Height, FallbackValue='130'}" Width="{Binding Width, FallbackValue='400'}" WindowStartupLocation="CenterOwner">
+    <Grid IsVisibleChanged="Grid_IsVisibleChanged">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="75" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="75" />
+        </Grid.ColumnDefinitions>
+        <Label Content="Id" FontWeight="Bold" />
+        <TextBox x:Name="Id" Grid.Column="1" Grid.ColumnSpan="2" Margin="0 5 5 5" />
+        <Label Grid.Row="1" Content="Date" FontWeight="Bold" />
+        <xctk:DateTimePicker x:Name="Date" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Margin="0 5 5 5" AutoCloseCalendar="True" TimePickerVisibility="Hidden" Format="Custom" FormatString="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=DateStringFormat, FallbackValue=ddd}" />
+        <Button Grid.Row="2" Grid.Column="1" Content="Save" HorizontalAlignment="Right" IsDefault="True" Padding="5" Margin="0 0 0 5" Click="Save_Click" />
+        <Button Grid.Row="2" Grid.Column="2" Content="Cancel" HorizontalAlignment="Right" IsCancel="True" Padding="5" Margin="0 0 5 5" />
+    </Grid>
+</Window>

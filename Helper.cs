@@ -1,4 +1,6 @@
 ﻿using Flurl.Http;
+using Flurl.Http.Configuration;
+using Newtonsoft.Json;
 using Polly;
 using Polly.Retry;
 using System;
@@ -14,8 +16,10 @@ namespace ApptReminderWindowsClient
 {
     public class Helper
     {
+        public static readonly string DateStringFormat = "MMM d yyyy h:mm tt";
         public static readonly string SettingsTable = "Settings";
         public static readonly string TemplateNameTable = "TemplateNames";
+        public static readonly string AppointmentTable = "Appointments";
         public static readonly string ApiUrlType = "BaseUrl";
         public static readonly string ApiKeyType = "ApiKey";
         // use | as the default because that is not a valid name so it will never conflict with a user selected name
@@ -36,6 +40,16 @@ namespace ApptReminderWindowsClient
 
         public Helper()
         {
+            // don't convert any date like strings to dates - https://github.com/JamesNK/Newtonsoft.Json/issues/862
+            FlurlHttp.Configure(settings =>
+            {
+                var jsonSettings = new JsonSerializerSettings
+                {
+                    DateParseHandling = DateParseHandling.None
+                };
+                settings.JsonSerializer = new NewtonsoftJsonSerializer(jsonSettings);
+            });
+
             // retry all throttling and server error api responses up to 4 times
             var random = new Random();
             bool shouldRetryCall(FlurlHttpException ex)
@@ -53,14 +67,15 @@ namespace ApptReminderWindowsClient
             RunQuery(new SQLiteCommand($"CREATE TABLE IF NOT EXISTS {SettingsTable} (type TEXT NOT NULL PRIMARY KEY, value TEXT)"));
             RunQuery(new SQLiteCommand($"CREATE TABLE IF NOT EXISTS {TemplateNameTable} (name TEXT NOT NULL PRIMARY KEY, value TEXT)"));
             RunQuery(new SQLiteCommand($"INSERT OR IGNORE INTO {TemplateNameTable} (name, value) VALUES ('{DefaultTemplateName}', 'Default')"));
+            RunQuery(new SQLiteCommand($"CREATE TABLE IF NOT EXISTS {AppointmentTable} (id TEXT NOT NULL, name TEXT, date INTEGER, date_format TEXT, PRIMARY KEY (id, date))"));
         }
 
-        public dynamic RunQuery(SQLiteCommand command)
+        public dynamic RunQuery(SQLiteCommand command, string dataSource = "local")
         {
             try
             {
                 List<Dictionary<string, object>> results = new List<Dictionary<string, object>>();
-                using (SQLiteConnection conn = new SQLiteConnection(@"Data Source=local.db;"))
+                using (SQLiteConnection conn = new SQLiteConnection($@"Data Source={dataSource}.db;"))
                 {
                     conn.Open();
                     command.Connection = conn;
@@ -88,10 +103,10 @@ namespace ApptReminderWindowsClient
             }
         }
 
-        public Task<dynamic> AsyncRunQuery(Func<SQLiteCommand> generateCommand)
+        public Task<dynamic> AsyncRunQuery(Func<SQLiteCommand> generateCommand, string dataSource = "local")
         {
             SQLiteCommand command = generateCommand();
-            return Task.Run(() => RunQuery(command));
+            return Task.Run(() => RunQuery(command, dataSource));
         }
 
         public string GetBaseUrl()

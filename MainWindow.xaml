@@ -19,7 +19,7 @@
                 <TabItem.Header>
                     <Image Source="icons/appointment.png" Height="32" ToolTip="Appointments"/>
                 </TabItem.Header>
-                <TextBlock>Appointments</TextBlock>
+                <local:AppointmentsTab Utils="{Binding ElementName=Main, Path=Utils}" Owner="{Binding ElementName=Main}"  />
             </TabItem>
             <TabItem>
                 <TabItem.Header>

@@ -25,6 +25,8 @@ namespace ApptReminderWindowsClient
 
         public string Text { get; set; }
 
+        public bool ShowSuccess { get; set; } = true;
+
         public TextBlock ErrorMessageBox { get; set; }
 
         public event RoutedEventHandler Click;
@@ -48,51 +50,52 @@ namespace ApptReminderWindowsClient
         {
             Button button = (Button)sender;
             button.IsEnabled = false;
-            StackPanel children = (StackPanel)button.Content;
-            var loading = children.Children[0];
-            var success = children.Children[1];
-            var failure = children.Children[2];
-            loading.Visibility = Visibility.Visible;
-            success.Visibility = Visibility.Collapsed;
-            failure.Visibility = Visibility.Collapsed;
+            Loading.Visibility = Visibility.Visible;
+            Success.Visibility = Visibility.Collapsed;
+            Failure.Visibility = Visibility.Collapsed;
             Click?.Invoke(this, e);
             if (ErrorMessageBox != null) ErrorMessageBox.Text = "";
             if (apiCalls != null)
             {
                 var responses = await Task.WhenAll(apiCalls);
-                loading.Visibility = Visibility.Collapsed;
+                Loading.Visibility = Visibility.Collapsed;
                 string errorMessage = string.Join("\n", responses.Where(response => response is string));
                 if (errorMessage.Length > 0)
                 {
-                    failure.Visibility = Visibility.Visible;
+                    Failure.Visibility = Visibility.Visible;
                     if (ErrorMessageBox != null) ErrorMessageBox.Text = errorMessage;
                 }
                 else
                 {
-                    success.Visibility = Visibility.Visible;
+                    if (ShowSuccess) Success.Visibility = Visibility.Visible;
                     Callback?.Invoke(responses.Length == 1 ? responses[0] : responses);
                 }
             }
             else
             {
-                loading.Visibility = Visibility.Collapsed;
-                success.Visibility = Visibility.Visible;
+                Loading.Visibility = Visibility.Collapsed;
+                if (ShowSuccess) Success.Visibility = Visibility.Visible;
             }
             apiCalls = null;
             Callback = null;
             button.IsEnabled = true;
         }
 
-        private void Button_Visibility_Listener(object sender, DependencyPropertyChangedEventArgs e)
+        public void ResetSuccess()
+        {
+            Success.Visibility = Visibility.Collapsed;
+        }
+
+        public void ResetFailure()
+        {
+            Failure.Visibility = Visibility.Collapsed;
+            if (ErrorMessageBox != null) ErrorMessageBox.Text = "";
+        }
+
+        private void Button_Visibility_Listener(object _, DependencyPropertyChangedEventArgs e)
         {
             if (!(bool)e.NewValue) return;
-            Button button = (Button)sender;
-            StackPanel children = (StackPanel)button.Content;
-            var success = children.Children[1];
-            if (success.Visibility == Visibility.Visible)
-            {
-                success.Visibility = Visibility.Collapsed;
-            }
+            ResetSuccess();
         }
     }
 }
